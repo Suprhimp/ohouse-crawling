@@ -4,9 +4,13 @@ import time
 import urllib.request
 import os
 from tqdm import tqdm
+import shutil
+import csv
+
+target_dir = '/Users/planningo/Library/CloudStorage/GoogleDrive-ksw1996121@planningo.io/공유 드라이브/Planningo/photio/ohouse'
 
 
-def ohLinkFinder(category_id: str, howMany: int):
+def ohLinkFinder(howMany: int):
     options = webdriver.ChromeOptions()
     options.add_experimental_option("excludeSwitches", ["enable-logging"])
     options.add_argument('start-maximized')
@@ -21,22 +25,21 @@ def ohLinkFinder(category_id: str, howMany: int):
     index_list = driver.find_elements(By.XPATH, '//*[@class="commerce-category-tree__entry"]/*[@class="commerce-category-tree__entry__header"]/*[@class="commerce-category-tree__entry__title"]')
     index_count = 0
     inner_page_list = []
-
+    outter_category_list = []
     for div in index_list:
         div.click()
-        print(div.get_attribute('innerText'))
-        if div.get_attribute('innerText') != '야외가구':
-            continue
         inner_index_list = div.parent.find_elements(By.XPATH, '//*[@class="open expanded"]/*[@class="commerce-category-tree commerce-category-tree__entry__children"]/*[@class="commerce-category-tree__entry"]/*[@class="commerce-category-tree__entry__header"]/*[@class="commerce-category-tree__entry__title"]')
         inner_list = []
-
+        outter_category_list.append(div.get_attribute('innerText'))
         for inner_div in inner_index_list:
             inner_list.append({'page_url':inner_div.get_attribute('href'),'page_name':inner_div.get_attribute('innerText')})
 
         inner_page_list.append(inner_list)
-    for inner_list in inner_page_list:
+    print(inner_page_list)
+    print(outter_category_list)
+    
+    for categoryIndex,inner_list in enumerate(inner_page_list):
         for inner_page in inner_list:
-            os.makedirs(inner_page['page_name'],exist_ok=True)
             driver.get(inner_page['page_url'])
             time.sleep(5)
             # os.makedirs(inner_page['page_name'],exist_ok=True)
@@ -67,28 +70,18 @@ def ohLinkFinder(category_id: str, howMany: int):
                 else:
                     last_page_height = new_page_height
             for i,link in enumerate(tqdm(linkSet)):
-                # if i< index_count*howMany:
-                #     continue
-                
-                saveName = f"{inner_page['page_name']}/{link.split('/')[-1].split('?')[0]}"
-                urllib.request.urlretrieve(link, saveName)
+                saveName = f"{link.split('/')[-1].split('?')[0]}"
+                data = [saveName,outter_category_list[categoryIndex],inner_page['page_name']]
+                with open('ohouse_data.csv','a') as file:
+                    write = csv.writer(file, delimiter=',')
+                    write.writerows([data])
+                # urllib.request.urlretrieve(link, saveName)
             index_count += 1
             driver.refresh()
-            time.sleep(5)
+            time.sleep(2)
+    
+    
 
+    # return linkSet
 
-
-def infinite_loop(driver):
-    #스크롤 내리기
-    last_page_height = driver.execute_script("return document.documentElement.scrollHeight")
-
-    while True: # True
-        driver.execute_script("window.scrollTo(0, document.documentElement.scrollHeight);")
-        time.sleep(1.0)
-        new_page_height = driver.execute_script("return document.documentElement.scrollHeight")
-        if new_page_height == last_page_height:
-            time.sleep(1.0)
-            if new_page_height == driver.execute_script("return document.documentElement.scrollHeight"):
-                break
-        else:
-            last_page_height = new_page_height
+ohLinkFinder(300)
